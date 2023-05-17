@@ -6,8 +6,10 @@ import requests
 
 
 def download_tree(locDir):
-    url = "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/"\
-          "UShER_SARS-CoV-2/public-latest.all.masked.pb.gz"
+    # url = "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/"\
+    #       "UShER_SARS-CoV-2/public-latest.all.masked.pb.gz"
+    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/05/31/"\
+        "public-2021-05-31.all.masked.nextclade.pangolin.pb.gz"
     treePath = os.path.join(locDir, "public-latest.all.masked.pb.gz")
     urllib.request.urlretrieve(url, treePath)
     return treePath
@@ -44,19 +46,10 @@ def convert_tree(loc_dir):
     return return_code
 
 
-def convert_tree_custom(tree_path):
-    print(f"Reading custom tree at: {tree_path}")
-    var_cmd = f"matUtils extract -i {tree_path} -C lineagePaths.txt"
-    sys.stdout.flush()  # force python to flush
-    return_code = subprocess.run(var_cmd, shell=True, executable="/bin/bash",
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.PIPE)
-    return return_code
-
-
 def get_curated_lineage_data(locDir):
-    url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/"\
-           "master/web/src/assets/genomics/curated_lineages.json"
+    # url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/"\
+        #    "master/web/src/assets/genomics/curated_lineages.json"
+    url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/e6777f8c190f8f328b4450d6f9f8d836172cc82b/web/src/assets/genomics/curated_lineages.json"
     urllib.request.urlretrieve(url2,
                                os.path.join(locDir,
                                             "curated_lineages.json"))
