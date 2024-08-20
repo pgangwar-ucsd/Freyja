@@ -87,7 +87,8 @@ def demix(variants, depths, output, eps, barcodes, meta,
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix,
-                                                               depths_,
+                                                               depths_, 
+                                                               muts,
                                                                eps)
     # merge intra-lineage diversity if multiple hits.
     if len(set(sample_strains)) < len(sample_strains):
