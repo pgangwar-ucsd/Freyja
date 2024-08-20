@@ -10,6 +10,9 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import matplotlib
 
+import gurobipy as gp
+from gurobipy import GRB
+
 
 def buildLineageMap(locDir):
     # Parsing curated lineage data from outbreak.info
@@ -123,11 +126,54 @@ def map_to_constellation(sample_strains, vals, mapDict):
     return localDict
 
 
-def solve_demixing_problem(df_barcodes, mix, depths, eps):
+def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     # single file problem setup, solving
 
     dep = np.log2(depths+1)
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
+
+    
+    ######################################REMOVE
+    #A = np.array((df_barcodes * dep).T)
+    #b = np.array(pd.to_numeric(mix) * dep)
+
+    ## Create a Gurobi model
+    #model = gp.Model('demixing_problem')
+
+    ## Define variables (x >= 0)
+    #x = model.addMVar(shape=A.shape[1], lb=0, ub=GRB.INFINITY, name="x")
+
+    ## Auxiliary variables for the absolute values |Ax - b|
+    #abs_diff = model.addMVar(shape=A.shape[0], lb=0, ub=GRB.INFINITY, name="abs_diff")
+
+    ## Add constraints for the absolute values
+    #model.addConstr(A @ x - b <= abs_diff, name="c1")
+    #model.addConstr(A @ x - b >= -abs_diff, name="c2")
+
+    ## Define the additional term ||x||^2
+    #quadratic_term = 0.1 * (x @ x)
+
+    ## Set the objective to minimize the L1 norm
+    #model.setObjective(abs_diff.sum() - quadratic_term, GRB.MINIMIZE)
+
+    ## Add constraints: sum(x) == 1
+    #model.addConstr(x.sum() == 1, "c0")
+
+    ## Set stopping criteria
+    #model.setParam('TimeLimit', 600)  # Set a time limit of 60 seconds
+    #model.setParam('MIPGap', 1e-5)   # Set a relative optimality gap of 0.001%
+    #model.setParam('IterationLimit', 100000)  # Set a limit on the number of iterations
+
+    ## Optimize the model
+    #model.optimize()
+
+    #if model.status == GRB.OPTIMAL:
+    #    sol = x.X  # Optimal values for variables
+    #    rnorm = model.ObjVal  # Value of the objective function
+    #else:
+    #    sol = None
+    #    rnorm = None
+    ################################################################
 
     # set up and solve demixing problem
     A = np.array((df_barcodes*dep).T)
@@ -139,6 +185,67 @@ def solve_demixing_problem(df_barcodes, mix, depths, eps):
     prob.solve(verbose=False)
     sol = x.value
     rnorm = cp.norm(A @ x - b, 1).value
+
+    # extract lineages with non-negligible abundance
+    sol[sol < eps] = 0
+    zero_indices = np.where(sol == 0)[0]
+    df_barcodes = df_barcodes.drop(index=df_barcodes.index[zero_indices])
+
+    A = np.array((df_barcodes*dep).T)
+    b = np.array(pd.to_numeric(mix)*dep)
+    x = cp.Variable(A.shape[1])
+    cost = cp.norm(A @ x - b, 1)
+    constraints = [sum(x) == 1, x >= 0]
+    prob = cp.Problem(cp.Minimize(cost), constraints)
+    prob.solve(verbose=False)
+    sol = x.value
+    rnorm = cp.norm(A @ x - b, 1).value
+
+    print(rnorm)
+    
+    #Ax_minus_b = A @ sol - b
+    #mean_value = np.mean(Ax_minus_b)
+    #variance_value = np.var(Ax_minus_b)
+    #sigma_value = np.sqrt(variance_value)
+    #print(f'\nMean of (Ax - b): {mean_value}')
+    #print(f'Variance of (Ax - b): {variance_value}\n')
+    #print(f'Sigma of (Ax - b): {sigma_value}\n')
+    
+    #lower_threshold = mean_value - 2 * sigma_value
+    #upper_threshold = mean_value + 2 * sigma_value
+    #indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
+    #for idx in indices:
+    #     print(muts[idx], Ax_minus_b[idx], pd.to_numeric(mix)[idx], dep[idx])
+    #    #hap_indices = np.where (A[idx] > 0)[0]
+    #    #print(muts[idx], len(hap_indices), np.sum(sol[hap_indices])*dep[idx], b[idx], dep[idx])
+    #################################
+
+    ## Define the range for the histogram
+    #range_max = mean_value + 2 * sigma_value
+    #bins = np.linspace(0, range_max, 5)
+
+    ## Plot the histogram
+    #n, bins, patches = plt.hist(Ax_minus_b, bins=bins, edgecolor='black', weights=np.ones(len(Ax_minus_b)) / len(Ax_minus_b) * 100)
+
+    ## Calculate the percentage of values in each bin
+    #bin_counts = n
+    #bin_percentages = (bin_counts / bin_counts.sum()) * 100
+
+    ## Annotate each bar with the percentage of values
+    #for count, percentage, patch in zip(bin_counts, bin_percentages, patches):
+    #    height = patch.get_height()
+    #    plt.text(patch.get_x() + patch.get_width() / 2., height, f'{percentage:.1f}%', ha='center', va='bottom', fontsize=8)
+
+    ## Set y-axis to percentage format
+    #plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.0f}%'))
+
+    ##plt.title("Histogram of abs(Ax - b) values from 0 to Mean + 2 * Sigma")
+    ##plt.xlabel("Value")
+    ##plt.ylabel("Percentage")
+    ##plt.savefig('histogram_plot.png', dpi=300)
+
+
+
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
     nzInds = np.nonzero(sol)[0]

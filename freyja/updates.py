@@ -8,8 +8,16 @@ import requests
 def download_tree(locDir):
     # url = "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/"\
     #       "UShER_SARS-CoV-2/public-latest.all.masked.pb.gz"
-    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/05/31/"\
-        "public-2021-05-31.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/04/10/"\
+    #      "public-2023-04-10.all.masked.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/08/17/"\
+    #    "public-2023-08-17.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/02/08/" \
+    #        "public-2022-02-08.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/06/01/" \
+    #        "public-2023-06-01.all.masked.nextclade.pangolin.pb.gz"
+    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/06/05/" \
+            "public-2022-06-05.all.masked.nextclade.pangolin.pb.gz"
     treePath = os.path.join(locDir, "public-latest.all.masked.pb.gz")
     urllib.request.urlretrieve(url, treePath)
     return treePath
