@@ -55,7 +55,8 @@ class DeconvTests(unittest.TestCase):
         depths = negative_binomial(50, 0.25, size=len(mix))
         eps = 0.001
         sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
-                                                                   mix, depths,
+                                                                   mix, depths, 
+                                                                   list(df_barcodes.columns),
                                                                    eps)
         self.assertAlmostEqual(
             abundances[sample_strains.tolist().index(strain1)], mixFracs[0])
