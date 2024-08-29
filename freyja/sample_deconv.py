@@ -296,7 +296,7 @@ def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
                                                mix_boot, dps_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix_boot_,
-                                                               dps_, eps0)
+                                                               dps_, list(df_barcodes.columns), eps0)
     localDict = map_to_constellation(sample_strains, abundances, mapDict)
     return sample_strains, abundances, localDict
 
