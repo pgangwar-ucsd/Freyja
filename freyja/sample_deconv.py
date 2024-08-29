@@ -10,8 +10,8 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import matplotlib
 
-import gurobipy as gp
-from gurobipy import GRB
+#import gurobipy as gp
+#from gurobipy import GRB
 
 
 def buildLineageMap(locDir):
