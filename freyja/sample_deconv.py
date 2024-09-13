@@ -10,10 +10,6 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import matplotlib
 
-import gurobipy as gp
-from gurobipy import GRB
-
-
 def buildLineageMap(locDir):
     # Parsing curated lineage data from outbreak.info
     if locDir == '-1':
@@ -132,49 +128,6 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     dep = np.log2(depths+1)
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
 
-    
-    ######################################REMOVE
-    #A = np.array((df_barcodes * dep).T)
-    #b = np.array(pd.to_numeric(mix) * dep)
-
-    ## Create a Gurobi model
-    #model = gp.Model('demixing_problem')
-
-    ## Define variables (x >= 0)
-    #x = model.addMVar(shape=A.shape[1], lb=0, ub=GRB.INFINITY, name="x")
-
-    ## Auxiliary variables for the absolute values |Ax - b|
-    #abs_diff = model.addMVar(shape=A.shape[0], lb=0, ub=GRB.INFINITY, name="abs_diff")
-
-    ## Add constraints for the absolute values
-    #model.addConstr(A @ x - b <= abs_diff, name="c1")
-    #model.addConstr(A @ x - b >= -abs_diff, name="c2")
-
-    ## Define the additional term ||x||^2
-    #quadratic_term = 0.1 * (x @ x)
-
-    ## Set the objective to minimize the L1 norm
-    #model.setObjective(abs_diff.sum() - quadratic_term, GRB.MINIMIZE)
-
-    ## Add constraints: sum(x) == 1
-    #model.addConstr(x.sum() == 1, "c0")
-
-    ## Set stopping criteria
-    #model.setParam('TimeLimit', 600)  # Set a time limit of 60 seconds
-    #model.setParam('MIPGap', 1e-5)   # Set a relative optimality gap of 0.001%
-    #model.setParam('IterationLimit', 100000)  # Set a limit on the number of iterations
-
-    ## Optimize the model
-    #model.optimize()
-
-    #if model.status == GRB.OPTIMAL:
-    #    sol = x.X  # Optimal values for variables
-    #    rnorm = model.ObjVal  # Value of the objective function
-    #else:
-    #    sol = None
-    #    rnorm = None
-    ################################################################
-
     # set up and solve demixing problem
     A = np.array((df_barcodes*dep).T)
     b = np.array(pd.to_numeric(mix)*dep)
@@ -182,7 +135,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     cost = cp.norm(A @ x - b, 1)
     constraints = [sum(x) == 1, x >= 0]
     prob = cp.Problem(cp.Minimize(cost), constraints)
-    prob.solve(verbose=False)
+    prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     rnorm = cp.norm(A @ x - b, 1).value
 
@@ -197,11 +150,15 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     cost = cp.norm(A @ x - b, 1)
     constraints = [sum(x) == 1, x >= 0]
     prob = cp.Problem(cp.Minimize(cost), constraints)
-    prob.solve(verbose=False)
+    prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     rnorm = cp.norm(A @ x - b, 1).value
 
     print(rnorm)
+
+    # Dump mutation residue file
+    Ax_minus_b = A @ sol - b
+    write_mutation_residue_file(Ax_minus_b, muts)
     
     #Ax_minus_b = A @ sol - b
     #mean_value = np.mean(Ax_minus_b)
@@ -218,7 +175,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     #     print(muts[idx], Ax_minus_b[idx], pd.to_numeric(mix)[idx], dep[idx])
     #    #hap_indices = np.where (A[idx] > 0)[0]
     #    #print(muts[idx], len(hap_indices), np.sum(sol[hap_indices])*dep[idx], b[idx], dep[idx])
-    #################################
+    ##################################
 
     ## Define the range for the histogram
     #range_max = mean_value + 2 * sigma_value
@@ -244,8 +201,6 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     ##plt.ylabel("Percentage")
     ##plt.savefig('histogram_plot.png', dpi=300)
 
-
-
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
     nzInds = np.nonzero(sol)[0]
@@ -254,6 +209,17 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     # sort strain/abundance lists in order of decreasing abundance
     indSort = np.argsort(abundances)[::-1]
     return sample_strains[indSort], abundances[indSort], rnorm
+
+
+def write_mutation_residue_file(Ax_minus_b, muts):
+    sorted_indices = sorted(range(len(Ax_minus_b)), key=lambda i: abs(Ax_minus_b[i]), reverse=True)
+    
+    with open("sorted_mutations.txt", 'w') as file:
+        for i in sorted_indices:
+            if (Ax_minus_b[i] > 0):
+                file.write(f"{muts[i][1:-1]}{muts[i][0]}\n")
+            else:
+                file.write(f"{muts[i][1:]}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,

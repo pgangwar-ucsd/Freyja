@@ -16,8 +16,14 @@ def download_tree(locDir):
     #        "public-2022-02-08.all.masked.nextclade.pangolin.pb.gz"
     #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/06/01/" \
     #        "public-2023-06-01.all.masked.nextclade.pangolin.pb.gz"
-    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/06/05/" \
-            "public-2022-06-05.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/06/05/" \
+    #        "public-2022-06-05.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/08/20/" \
+    #        "public-2022-08-20.all.masked.nextclade.pangolin.pb.gz"
+    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/11/15/" \
+            "public-2021-11-15.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/12/06/" \
+    #        "public-2021-12-06.all.masked.nextclade.pangolin.pb.gz"
     treePath = os.path.join(locDir, "public-latest.all.masked.pb.gz")
     urllib.request.urlretrieve(url, treePath)
     return treePath
