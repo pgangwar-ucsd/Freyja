@@ -154,53 +154,11 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     rnorm = cp.norm(A @ x - b, 1).value
-
     print(rnorm)
 
-    # Dump mutation residue file
+    # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_mutation_residue_file(Ax_minus_b, muts)
-    
-    #Ax_minus_b = A @ sol - b
-    #mean_value = np.mean(Ax_minus_b)
-    #variance_value = np.var(Ax_minus_b)
-    #sigma_value = np.sqrt(variance_value)
-    #print(f'\nMean of (Ax - b): {mean_value}')
-    #print(f'Variance of (Ax - b): {variance_value}\n')
-    #print(f'Sigma of (Ax - b): {sigma_value}\n')
-    
-    #lower_threshold = mean_value - 2 * sigma_value
-    #upper_threshold = mean_value + 2 * sigma_value
-    #indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
-    #for idx in indices:
-    #     print(muts[idx], Ax_minus_b[idx], pd.to_numeric(mix)[idx], dep[idx])
-    #    #hap_indices = np.where (A[idx] > 0)[0]
-    #    #print(muts[idx], len(hap_indices), np.sum(sol[hap_indices])*dep[idx], b[idx], dep[idx])
-    ##################################
-
-    ## Define the range for the histogram
-    #range_max = mean_value + 2 * sigma_value
-    #bins = np.linspace(0, range_max, 5)
-
-    ## Plot the histogram
-    #n, bins, patches = plt.hist(Ax_minus_b, bins=bins, edgecolor='black', weights=np.ones(len(Ax_minus_b)) / len(Ax_minus_b) * 100)
-
-    ## Calculate the percentage of values in each bin
-    #bin_counts = n
-    #bin_percentages = (bin_counts / bin_counts.sum()) * 100
-
-    ## Annotate each bar with the percentage of values
-    #for count, percentage, patch in zip(bin_counts, bin_percentages, patches):
-    #    height = patch.get_height()
-    #    plt.text(patch.get_x() + patch.get_width() / 2., height, f'{percentage:.1f}%', ha='center', va='bottom', fontsize=8)
-
-    ## Set y-axis to percentage format
-    #plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.0f}%'))
-
-    ##plt.title("Histogram of abs(Ax - b) values from 0 to Mean + 2 * Sigma")
-    ##plt.xlabel("Value")
-    ##plt.ylabel("Percentage")
-    ##plt.savefig('histogram_plot.png', dpi=300)
+    write_residual_mutations(Ax_minus_b, muts)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -212,15 +170,22 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_mutation_residue_file(Ax_minus_b, muts):
-    sorted_indices = sorted(range(len(Ax_minus_b)), key=lambda i: abs(Ax_minus_b[i]), reverse=True)
+def write_residual_mutations(Ax_minus_b, muts):
+    mean_value = np.mean(Ax_minus_b)
+    variance_value = np.var(Ax_minus_b)
+    sigma_value = np.sqrt(variance_value)
     
-    with open("sorted_mutations.txt", 'w') as file:
-        for i in sorted_indices:
-            if (Ax_minus_b[i] > 0):
-                file.write(f"{muts[i][1:-1]}{muts[i][0]}\n")
+    lower_threshold = mean_value - 5 * sigma_value
+    upper_threshold = mean_value + 5 * sigma_value
+    indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
+    with open("residual_mutations.txt", 'w') as file:
+        for idx in indices:
+            if Ax_minus_b[idx] > 0:
+                mut = muts[idx][1:-1] + muts[idx][0]
             else:
-                file.write(f"{muts[i][1:]}\n")
+                mut = muts[idx][1:-1] + muts[idx][-1]
+            file.write(f"{mut}\n")
+            #print(mut, (Ax_minus_b[idx] - mean_value) / sigma_value, pd.to_numeric(mix)[idx], dep[idx])
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
@@ -263,7 +228,7 @@ def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
                                                mix_boot, dps_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix_boot_,
-                                                               dps_, list(df_barcodes.columns), eps0)
+                                                               dps_, eps0)
     localDict = map_to_constellation(sample_strains, abundances, mapDict)
     return sample_strains, abundances, localDict
 
