@@ -183,7 +183,7 @@ def write_residual_mutations(Ax_minus_b, depths, muts):
     with open("residual_mutations.txt", 'w') as file:
         for idx in indices:
             # Only consider mutations with depth > 0.1 * mean_depth
-            if depths[idx] > int(0.1 * mean_depth):
+            if depths.iloc[idx] > int(0.1 * mean_depth):
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
