@@ -158,7 +158,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
 
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, muts)
+    write_residual_mutations(Ax_minus_b, depths, muts)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -170,22 +170,26 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, muts):
+def write_residual_mutations(Ax_minus_b, depths, muts):
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
+    mean_depth = np.mean(depths)
     
+    # Only consider mutations outside mean +- 5 sigma
     lower_threshold = mean_value - 5 * sigma_value
     upper_threshold = mean_value + 5 * sigma_value
     indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
     with open("residual_mutations.txt", 'w') as file:
         for idx in indices:
-            if Ax_minus_b[idx] > 0:
-                mut = muts[idx][1:-1] + muts[idx][0]
-            else:
-                mut = muts[idx][1:-1] + muts[idx][-1]
-            file.write(f"{mut}\n")
-            #print(mut, (Ax_minus_b[idx] - mean_value) / sigma_value, pd.to_numeric(mix)[idx], dep[idx])
+            # Only consider mutations with depth > 0.1 * mean_depth
+            if depths[idx] > int(0.1 * mean_depth):
+                if Ax_minus_b[idx] > 0:
+                    mut = muts[idx][1:-1] + muts[idx][0]
+                else:
+                    mut = muts[idx][1:-1] + muts[idx][-1]
+                file.write(f"{mut}\n")
+                #print(mut, (Ax_minus_b[idx] - mean_value) / sigma_value, pd.to_numeric(mix)[idx], dep[idx])
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
