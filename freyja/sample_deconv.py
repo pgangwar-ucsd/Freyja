@@ -154,7 +154,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     rnorm = cp.norm(A @ x - b, 1).value
-    print(rnorm)
+    print(f"Cost: {rnorm}")
 
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
@@ -174,22 +174,33 @@ def write_residual_mutations(Ax_minus_b, depths, muts):
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
-    mean_depth = np.mean(depths)
     
     # Only consider mutations outside mean +- 5 sigma
     lower_threshold = mean_value - 5 * sigma_value
     upper_threshold = mean_value + 5 * sigma_value
     indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
+
+    # Compute mean depth
+    site_depth = {}
+    for idx in range(len(muts)):
+        site = muts[idx][1:-1]
+        if site not in site_depth:
+            site_depth[site] = depths[idx]
+    
+    mean_depth = sum(site_depth.values()) / len(site_depth)
+    
+    print(f"Correct mean depth: {mean_depth}")
+    print(f"InCorrect mean depth: {np.mean(depths)}")
+
     with open("residual_mutations.txt", 'w') as file:
         for idx in indices:
             # Only consider mutations with depth > 0.1 * mean_depth
-            if depths.iloc[idx] > int(0.1 * mean_depth):
-                if Ax_minus_b[idx] > 0:
-                    mut = muts[idx][1:-1] + muts[idx][0]
-                else:
-                    mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut}\n")
-                #print(mut, (Ax_minus_b[idx] - mean_value) / sigma_value, pd.to_numeric(mix)[idx], dep[idx])
+            #if depths.iloc[idx] > int(0.1 * mean_depth):
+            if Ax_minus_b[idx] > 0:
+                mut = muts[idx][1:-1] + muts[idx][0]
+            else:
+                mut = muts[idx][1:-1] + muts[idx][-1]
+            file.write(f"{mut},{depths.iloc[idx]}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
