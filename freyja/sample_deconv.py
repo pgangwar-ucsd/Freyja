@@ -188,7 +188,7 @@ def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
                     mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut}\n")
+                file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
