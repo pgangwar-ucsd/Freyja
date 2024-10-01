@@ -123,9 +123,8 @@ def map_to_constellation(sample_strains, vals, mapDict):
     return localDict
 
 
-def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
+def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     # single file problem setup, solving
-
     dep = np.log2(depths+1)
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
 
@@ -158,7 +157,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
 
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, muts)
+    write_residual_mutations(Ax_minus_b, depths, avg_depth, muts)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -170,7 +169,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, muts, eps):
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, depths, muts):
+def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
@@ -179,28 +178,17 @@ def write_residual_mutations(Ax_minus_b, depths, muts):
     lower_threshold = mean_value - 5 * sigma_value
     upper_threshold = mean_value + 5 * sigma_value
     indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
-
-    # Compute mean depth
-    site_depth = {}
-    for idx in range(len(muts)):
-        site = muts[idx][1:-1]
-        if site not in site_depth:
-            site_depth[site] = depths[idx]
-    
-    mean_depth = sum(site_depth.values()) / len(site_depth)
-    
-    print(f"Correct mean depth: {mean_depth}")
-    print(f"InCorrect mean depth: {np.mean(depths)}")
+    sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
 
     with open("residual_mutations.txt", 'w') as file:
-        for idx in indices:
-            # Only consider mutations with depth > 0.1 * mean_depth
-            #if depths.iloc[idx] > int(0.1 * mean_depth):
-            if Ax_minus_b[idx] > 0:
-                mut = muts[idx][1:-1] + muts[idx][0]
-            else:
-                mut = muts[idx][1:-1] + muts[idx][-1]
-            file.write(f"{mut},{depths.iloc[idx]}\n")
+        for idx in sorted_indices:
+            # Only consider mutations with depth > 0.01 * mean_depth
+            if depths.iloc[idx] > int(0.01 * avg_depth):
+                if Ax_minus_b[idx] > 0:
+                    mut = muts[idx][1:-1] + muts[idx][0]
+                else:
+                    mut = muts[idx][1:-1] + muts[idx][-1]
+                file.write(f"{mut}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
@@ -239,11 +227,18 @@ def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
     dps_ = pd.Series({kI:
                       dps[int(kI[1:(len(kI)-1)])].astype(float)
                       for kI in muts}, name='depths')
+    
+    # get average depth across genome
+    avg_depth = dps.mean()
+
     df_barcodes, mix_boot_, dps_ = reindex_dfs(df_barcodes,
                                                mix_boot, dps_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix_boot_,
-                                                               dps_, eps0)
+                                                               dps_,
+                                                               avg_depth,
+                                                               muts,
+                                                               eps0)
     localDict = map_to_constellation(sample_strains, abundances, mapDict)
     return sample_strains, abundances, localDict
 
@@ -359,10 +354,17 @@ if __name__ == '__main__':
     # assemble data from of (possibly) mixed samples
     mix, depths_, cov = build_mix_and_depth_arrays(variants, depths, muts)
     print('demixing')
+    
+    # get average depth across genome
+    df_depth = pd.read_csv(depths, sep='\t', header=None, index_col=1)
+    avg_depth = df_depth.iloc[:, 2].mean()
+    
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix,
-                                                               depths_, eps)
+                                                               depths_,
+                                                               avg_depth,
+                                                               eps)
     localDict = map_to_constellation(sample_strains, abundances, mapDict)
     # assemble into series and write.
     sols_df = pd.Series(data=(localDict, sample_strains, abundances, error),
