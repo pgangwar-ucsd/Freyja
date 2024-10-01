@@ -53,9 +53,15 @@ class DeconvTests(unittest.TestCase):
             + mixFracs[1]*df_barcodes.loc[strain2, ]
         # generate random sequencing depth at each position
         depths = negative_binomial(50, 0.25, size=len(mix))
+
+        # get average depth across genome
+        avg_depth = depths.mean()
+
         eps = 0.001
         sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
-                                                                   mix, depths, 
+                                                                   mix, 
+                                                                   depths,
+                                                                   avg_depth, 
                                                                    list(df_barcodes.columns),
                                                                    eps)
         self.assertAlmostEqual(
