@@ -1,16 +1,17 @@
 import click
 import pandas as pd
-from freyja.convert_paths2barcodes import parse_tree_paths,\
+from freyja.convert_paths2barcodes import parse_tree_paths, \
     convert_to_barcodes, reversion_checking, check_mutation_chain
-from freyja.read_analysis_tools import extract as _extract, filter as _filter,\
-    covariants as _covariants, plot_covariants as _plot_covariants
-from freyja.sample_deconv import buildLineageMap, build_mix_and_depth_arrays,\
-    reindex_dfs, map_to_constellation, solve_demixing_problem,\
+from freyja.read_analysis_tools import extract as _extract, \
+    filter as _filter, covariants as _covariants, \
+    plot_covariants as _plot_covariants
+from freyja.sample_deconv import buildLineageMap, build_mix_and_depth_arrays, \
+    reindex_dfs, map_to_constellation, solve_demixing_problem, \
     perform_bootstrap
-from freyja.updates import download_tree, convert_tree,\
-    get_curated_lineage_data, get_cl_lineages,\
+from freyja.updates import download_tree, convert_tree, \
+    get_curated_lineage_data, get_cl_lineages, \
     download_barcodes, download_barcodes_wgisaid
-from freyja.utils import agg, makePlot_simple, makePlot_time,\
+from freyja.utils import agg, makePlot_simple, makePlot_time, \
     make_dashboard, checkConfig, get_abundance, calc_rel_growth_rates
 import os
 import glob
@@ -84,7 +85,6 @@ def demix(variants, depths, output, eps, barcodes, meta,
     mix, depths_, cov = build_mix_and_depth_arrays(variants, depths, muts,
                                                    covcut)
     print('demixing')
-    
     # get average depth across genome
     df_depth = pd.read_csv(depths, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
@@ -92,7 +92,7 @@ def demix(variants, depths, output, eps, barcodes, meta,
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix,
-                                                               depths_, 
+                                                               depths_,
                                                                avg_depth,
                                                                muts,
                                                                eps)
@@ -204,12 +204,12 @@ def update(outdir, noncl, wgisaid, buildlocal):
 def variants(bamfile, ref, variants, depths, refname, minq):
     if len(refname) == 0:
         bashCmd = f"samtools mpileup -aa -A -d 600000 -Q {minq} -q 0 -B -f "\
-                  f"{ref} {bamfile} | tee >(cut -f1-4 > {depths}) |"\
-                  f" ivar variants -p {variants} -q {minq} -t 0.0 -r {ref}"
+            f"{ref} {bamfile} | tee >(cut -f1-4 > {depths}) |"\
+            f" ivar variants -p {variants} -q {minq} -t 0.0 -r {ref}"
     else:
         bashCmd = f"samtools mpileup -aa -A -d 600000 -Q {minq} -q 0 -B -f "\
-                  f"{ref} {bamfile} -r {refname} | tee >(cut -f1-4 > {depths}"\
-                  f") | ivar variants -p {variants} -q {minq} -t 0.0 -r {ref}"
+            f"{ref} {bamfile} -r {refname} | tee >(cut -f1-4 > {depths}"\
+            f") | ivar variants -p {variants} -q {minq} -t 0.0 -r {ref}"
     sys.stdout.flush()  # force python to flush
     completed = subprocess.run(bashCmd, shell=True, executable="/bin/bash",
                                stdout=subprocess.PIPE)

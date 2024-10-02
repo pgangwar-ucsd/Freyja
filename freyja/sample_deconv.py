@@ -173,11 +173,12 @@ def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
-    
     # Only consider mutations outside mean +- 5 sigma
     lower_threshold = mean_value - 5 * sigma_value
     upper_threshold = mean_value + 5 * sigma_value
-    indices = np.where((Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold))[0]
+    indices = np.where(
+        (Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold)
+    )[0]
     sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
 
     with open("residual_mutations.txt", 'w') as file:
@@ -227,7 +228,6 @@ def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
     dps_ = pd.Series({kI:
                       dps[int(kI[1:(len(kI)-1)])].astype(float)
                       for kI in muts}, name='depths')
-    
     # get average depth across genome
     avg_depth = dps.mean()
 
@@ -354,11 +354,9 @@ if __name__ == '__main__':
     # assemble data from of (possibly) mixed samples
     mix, depths_, cov = build_mix_and_depth_arrays(variants, depths, muts)
     print('demixing')
-    
     # get average depth across genome
     df_depth = pd.read_csv(depths, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
-    
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix,

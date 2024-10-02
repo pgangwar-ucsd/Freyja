@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
-from freyja.sample_deconv import buildLineageMap, build_mix_and_depth_arrays,\
-    reindex_dfs, map_to_constellation, solve_demixing_problem,\
+from freyja.sample_deconv import buildLineageMap, build_mix_and_depth_arrays, \
+    reindex_dfs, map_to_constellation, solve_demixing_problem, \
     perform_bootstrap
 import pandas.testing as pdt
 import pandas.api.types as ptypes
@@ -49,8 +49,8 @@ class DeconvTests(unittest.TestCase):
         strain1 = 'B.1.1.7'
         strain2 = 'B.1.427'
         mixFracs = [0.4, 0.6]
-        mix = mixFracs[0]*df_barcodes.loc[strain1, ]\
-            + mixFracs[1]*df_barcodes.loc[strain2, ]
+        mix = mixFracs[0] * df_barcodes.loc[strain1, ]\
+            + mixFracs[1] * df_barcodes.loc[strain2, ]
         # generate random sequencing depth at each position
         depths = negative_binomial(50, 0.25, size=len(mix))
 
@@ -58,12 +58,14 @@ class DeconvTests(unittest.TestCase):
         avg_depth = depths.mean()
 
         eps = 0.001
-        sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
-                                                                   mix, 
-                                                                   depths,
-                                                                   avg_depth, 
-                                                                   list(df_barcodes.columns),
-                                                                   eps)
+        sample_strains, abundances, error = solve_demixing_problem(
+            df_barcodes,
+            mix,
+            depths,
+            avg_depth,
+            list(df_barcodes.columns),
+            eps
+        )
         self.assertAlmostEqual(
             abundances[sample_strains.tolist().index(strain1)], mixFracs[0])
         self.assertAlmostEqual(
@@ -78,8 +80,8 @@ class DeconvTests(unittest.TestCase):
         strain1 = 'B.1.1.7'
         strain2 = 'B.1.427'
         mixFracs = [0.4, 0.6]
-        mix = mixFracs[0]*df_barcodes.loc[strain1, ]\
-            + mixFracs[1]*df_barcodes.loc[strain2, ]
+        mix = mixFracs[0] * df_barcodes.loc[strain1, ]\
+            + mixFracs[1] * df_barcodes.loc[strain2, ]
         # generate random sequencing depth at each position
         depths = pd.Series(negative_binomial(50, 0.25, size=len(mix)),
                            index=mix.index)
