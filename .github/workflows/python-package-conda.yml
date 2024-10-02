@@ -31,7 +31,6 @@ jobs:
           conda config --add channels conda-forge          
           conda install --yes --file ci/conda_requirements.txt
           pip install -e . --no-deps
-          pip install clarabel
           
       - name: Test
         shell: bash -l {0}
