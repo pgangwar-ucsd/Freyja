@@ -8,22 +8,13 @@ import requests
 def download_tree(locDir):
     # url = "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/"\
     #       "UShER_SARS-CoV-2/public-latest.all.masked.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/04/10/"\
-    #      "public-2023-04-10.all.masked.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/08/17/"\
-    #    "public-2023-08-17.all.masked.nextclade.pangolin.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/02/08/" \
-    #        "public-2022-02-08.all.masked.nextclade.pangolin.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2023/06/01/" \
-    #        "public-2023-06-01.all.masked.nextclade.pangolin.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/06/05/" \
-    #        "public-2022-06-05.all.masked.nextclade.pangolin.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2022/08/20/" \
-    #        "public-2022-08-20.all.masked.nextclade.pangolin.pb.gz"
-    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/11/15/" \
+    # url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
+    #       "UShER_SARS-CoV-2/2023/04/10/public-2023-04-10.all.masked.pb.gz"
+    # url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
+    #       "UShER_SARS-CoV-2/2023/08/17/public-2023-08-17.all.masked.nextclade.pangolin.pb.gz"
+    url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
+            "UShER_SARS-CoV-2/2021/11/15/"\
             "public-2021-11-15.all.masked.nextclade.pangolin.pb.gz"
-    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/UShER_SARS-CoV-2/2021/12/06/" \
-    #        "public-2021-12-06.all.masked.nextclade.pangolin.pb.gz"
     treePath = os.path.join(locDir, "public-latest.all.masked.pb.gz")
     urllib.request.urlretrieve(url, treePath)
     return treePath
@@ -62,8 +53,10 @@ def convert_tree(loc_dir):
 
 def get_curated_lineage_data(locDir):
     # url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/"\
-        #    "master/web/src/assets/genomics/curated_lineages.json"
-    url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/e6777f8c190f8f328b4450d6f9f8d836172cc82b/web/src/assets/genomics/curated_lineages.json"
+    #    "master/web/src/assets/genomics/curated_lineages.json"
+    url2 = "https://raw.githubusercontent.com/outbreak-info/outbreak.info/"\
+        "e6777f8c190f8f328b4450d6f9f8d836172cc82b/web/src/assets/genomics/"\
+        "curated_lineages.json"
     urllib.request.urlretrieve(url2,
                                os.path.join(locDir,
                                             "curated_lineages.json"))

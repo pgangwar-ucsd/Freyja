@@ -1,6 +1,6 @@
 import unittest
 import pandas as pd
-from freyja.convert_paths2barcodes import parse_tree_paths, sortFun,\
+from freyja.convert_paths2barcodes import parse_tree_paths, sortFun, \
     convert_to_barcodes, reversion_checking
 import pandas.testing as pdt
 
@@ -45,9 +45,11 @@ class BarcodeTests(unittest.TestCase):
     def test_no_flip_pairs(self):
         df_barcodes = pd.read_csv('freyja/data/usher_barcodes.csv',
                                   index_col=0)
-        flipPairs = [(d, d[-1] + d[1:len(d)-1]+d[0])
-                     for d in df_barcodes.columns
-                     if (d[-1] + d[1:len(d)-1]+d[0]) in df_barcodes.columns]
+        flipPairs = [
+            (d, d[-1] + d[1:len(d) - 1] + d[0])
+            for d in df_barcodes.columns
+            if (d[-1] + d[1:len(d) - 1] + d[0]) in df_barcodes.columns
+        ]
         self.assertTrue(len(flipPairs) == 0)
 
 
