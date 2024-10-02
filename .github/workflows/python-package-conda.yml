@@ -30,13 +30,13 @@ jobs:
           conda config --add channels bioconda
           conda config --add channels conda-forge          
           conda install --yes --file ci/conda_requirements.txt
-          pip install -e . --no-deps 
+          pip install -e . --no-deps
+          pip install clarabel
           
       - name: Test
         shell: bash -l {0}
         run: |
           conda activate test
-          pip install clarabel
           make test
 
   lint:
