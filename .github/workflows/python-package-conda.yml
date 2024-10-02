@@ -36,6 +36,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate test
+          pip install clarabel
           make test
 
   lint:
