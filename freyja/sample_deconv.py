@@ -137,10 +137,30 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     prob = cp.Problem(cp.Minimize(cost), constraints)
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
-    rnorm = cp.norm(A @ x - b, 1).value
+    
+    sorted_indices = np.argsort(np.abs(sol))
+    for i in range(len(sorted_indices)):
+        idx = sorted_indices[i]
+        curr_sol = np.abs(sol[idx])
+        if  curr_sol < eps:
+            curr_peak = df_barcodes.iloc[idx]
 
-    # extract lineages with non-negligible abundance
-    sol[sol < eps] = 0
+            # Get closest peak
+            min_dist = float('inf')
+            closest_jdx = None
+            for j in range(i+1, len(sorted_indices)):
+                jdx = sorted_indices[j]
+                cmp_peak = df_barcodes.iloc[jdx]
+                curr_dist = np.sum(np.abs(curr_peak - cmp_peak))
+                if curr_dist < min_dist:
+                    min_dist = curr_dist
+                    closest_jdx = jdx
+            
+            # Add curr_sol to sol of closest_jdx
+            sol[closest_jdx] = np.abs(sol[closest_jdx]) + curr_sol
+            sol[idx] = 0
+
+    # Remove peaks from consideration whose sol was made 0
     zero_indices = np.where(sol == 0)[0]
     df_barcodes = df_barcodes.drop(index=df_barcodes.index[zero_indices])
 
@@ -152,15 +172,16 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     prob = cp.Problem(cp.Minimize(cost), constraints)
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
-    rnorm = cp.norm(A @ x - b, 1).value
+    rnorm = cp.norm(A @ sol - b, 1).value
     print(f"Cost: {rnorm}")
-
+    
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
     write_residual_mutations(Ax_minus_b, depths, avg_depth, muts)
-
+    
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
+
     nzInds = np.nonzero(sol)[0]
     sample_strains = df_barcodes.index[nzInds].to_numpy()
     abundances = sol[nzInds]
