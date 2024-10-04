@@ -138,28 +138,9 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     
-    sorted_indices = np.argsort(np.abs(sol))
-    for i in range(len(sorted_indices)):
-        idx = sorted_indices[i]
-        curr_sol = np.abs(sol[idx])
-        if  curr_sol < eps:
-            curr_peak = df_barcodes.iloc[idx]
-
-            # Get closest peak
-            min_dist = float('inf')
-            closest_jdx = None
-            for j in range(i+1, len(sorted_indices)):
-                jdx = sorted_indices[j]
-                cmp_peak = df_barcodes.iloc[jdx]
-                curr_dist = np.sum(np.abs(curr_peak - cmp_peak))
-                if curr_dist < min_dist:
-                    min_dist = curr_dist
-                    closest_jdx = jdx
-            
-            # Add curr_sol to sol of closest_jdx
-            sol[closest_jdx] = np.abs(sol[closest_jdx]) + curr_sol
-            sol[idx] = 0
-
+    # extract lineages with non-negligible abundance
+    sol[sol < eps] = 0
+    
     # Remove peaks from consideration whose sol was made 0
     zero_indices = np.where(sol == 0)[0]
     df_barcodes = df_barcodes.drop(index=df_barcodes.index[zero_indices])
@@ -175,10 +156,6 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     rnorm = cp.norm(A @ sol - b, 1).value
     print(f"Cost: {rnorm}")
     
-    # Dump mutation residual_mutations
-    Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, avg_depth, muts)
-    
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
 
@@ -188,29 +165,6 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     # sort strain/abundance lists in order of decreasing abundance
     indSort = np.argsort(abundances)[::-1]
     return sample_strains[indSort], abundances[indSort], rnorm
-
-
-def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
-    mean_value = np.mean(Ax_minus_b)
-    variance_value = np.var(Ax_minus_b)
-    sigma_value = np.sqrt(variance_value)
-    # Only consider mutations outside mean +- 5 sigma
-    lower_threshold = mean_value - 5 * sigma_value
-    upper_threshold = mean_value + 5 * sigma_value
-    indices = np.where(
-        (Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold)
-    )[0]
-    sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
-
-    with open("residual_mutations.txt", 'w') as file:
-        for idx in sorted_indices:
-            # Only consider mutations with depth > 0.01 * mean_depth
-            if depths.iloc[idx] > int(0.01 * avg_depth):
-                if Ax_minus_b[idx] > 0:
-                    mut = muts[idx][1:-1] + muts[idx][0]
-                else:
-                    mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
