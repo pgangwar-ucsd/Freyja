@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import matplotlib
-import concurrent.futures
-
+import csv
+import subprocess
 
 def buildLineageMap(locDir):
     # Parsing curated lineage data from outbreak.info
@@ -139,30 +139,30 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     
-    sorted_indices = np.argsort(np.abs(sol))
-    sorted_indices_less_than_eps = []
-    for i in range(len(sorted_indices)):
-        idx = sorted_indices[i]
-        if  np.abs(sol[idx]) < eps:
-            sorted_indices_less_than_eps.append(i)
+    # Write closest_peak_search.csv to be computed using C++ 
+    with open('closest_peak_search.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+        for i in range(len(sol)):
+            abs_sol = np.abs(sol[i])
+            barcode = df_barcodes.iloc[i].tolist()
+            writer.writerow([abs_sol] + barcode)
 
-    # Find closest neighbor for peaks with sol < eps in parallel
-    with concurrent.futures.ProcessPoolExecutor(max_workers=56) as executor:
-        closest_peak_sorted_indices = list(executor.map(get_closest_peak_index, \
-        [df_barcodes] * len(sorted_indices_less_than_eps), \
-        [sol] * len(sorted_indices_less_than_eps), \
-        [sorted_indices] * len(sorted_indices_less_than_eps), sorted_indices_less_than_eps))
+    # Run the closest_peak_clustering
+    executable_path = '../SARS2-WBE/build/closest_peak_clustering'
+    try:
+        result = subprocess.run([executable_path, str(eps)], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("Error message:\n", result.stderr)
+    except FileNotFoundError:
+        print(f"Executable not found: {executable_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-    # Update sol of peaks with sol < eps
-    for k in range(len(sorted_indices_less_than_eps)):
-        idx = sorted_indices[k]
-        # Checking again as we are updating sol
-        if  np.abs(sol[idx]) < eps:
-            j = closest_peak_sorted_indices[k]
-            jdx = sorted_indices[j]
-            curr_sol = np.abs(sol[idx])
-            sol[jdx] = np.abs(sol[jdx]) + curr_sol
-            sol[idx] = 0
+    # Read peak_removal.csv which has updated cost based on threshold and closest peak
+    with open('peaks_clustered.csv', newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        for i, row in enumerate(reader):
+            sol[i] = float(row[0])
     
     # Remove peaks from consideration whose sol was made 0
     zero_indices = np.where(sol == 0)[0]
@@ -192,24 +192,6 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     # sort strain/abundance lists in order of decreasing abundance
     indSort = np.argsort(abundances)[::-1]
     return sample_strains[indSort], abundances[indSort], rnorm
-
-
-def get_closest_peak_index(df_barcodes, sol, sorted_indices, i):
-    idx = sorted_indices[i]
-    curr_peak = df_barcodes.iloc[idx]
-            
-    # Get closest peak
-    min_dist = float('inf')
-    closest_j = None
-    for j in range(i+1, len(sorted_indices)):
-        jdx = sorted_indices[j]
-        cmp_peak = df_barcodes.iloc[jdx]
-        curr_dist = np.sum(np.abs(curr_peak - cmp_peak))
-        if curr_dist < min_dist:
-            min_dist = curr_dist
-            closest_j = j
-    
-    return closest_j
 
 
 def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
