@@ -148,7 +148,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
             writer.writerow([abs_sol] + barcode)
 
     # Run the closest_peak_clustering
-    executable_path = '../SARS2-WBE/build/closest_peak_clustering'
+    executable_path = '../../build/closest_peak_clustering'
     try:
         result = subprocess.run([executable_path, str(eps)], capture_output=True, text=True)
         if result.returncode != 0:
