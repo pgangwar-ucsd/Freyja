@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
 
     // Read the CSV file and get the vector of costMutations structs
     std::string input_filename = "./closest_peak_search.csv";
-    std::string output_filename = ".peaks_clustered.csv";
+    std::string output_filename = "./peaks_clustered.csv";
     std::vector<struct costMutations> data = readCSV(input_filename);
     if (data.empty())
         return 1;
