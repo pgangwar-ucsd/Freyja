@@ -12,9 +12,13 @@ def download_tree(locDir):
     #       "UShER_SARS-CoV-2/2023/04/10/public-2023-04-10.all.masked.pb.gz"
     # url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
     #       "UShER_SARS-CoV-2/2023/08/17/public-2023-08-17.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
+    #        "UShER_SARS-CoV-2/2021/11/15/"\
+    #        "public-2021-11-15.all.masked.nextclade.pangolin.pb.gz"
+    #url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
+    #        "UShER_SARS-CoV-2/2022/05/15/public-2022-05-15.all.masked.pb.gz"
     url = "https://hgdownload.gi.ucsc.edu/goldenPath/wuhCor1/"\
-            "UShER_SARS-CoV-2/2021/11/15/"\
-            "public-2021-11-15.all.masked.nextclade.pangolin.pb.gz"
+            "UShER_SARS-CoV-2/2024/11/04/public-2024-11-04.all.masked.pb.gz"
     treePath = os.path.join(locDir, "public-latest.all.masked.pb.gz")
     urllib.request.urlretrieve(url, treePath)
     return treePath
