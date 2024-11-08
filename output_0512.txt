@@ -1,9 +1,0 @@
-	/Users/carolynzhang/Projects/Research/Freyja/freyja/data/my_vcf_reads_freyja.vcf
-summarized	[('Other', 0.9999999998480109)]
-lineages	B.1.427 B.1.582 B.1.389 B.1.489 B.1.170 B.1.1.101 B.1.260 B.1.580
-abundances	0.30841100 0.28336009 0.19827600 0.09401700 0.04617800 0.03960400 0.02225200 0.00790191
-resid	3.4350034896641786
-coverage	99.93646122462629
-
-B.1427(0.30) B.1582(0.28) B.1389(0.198) 
-This output shows that it recovered 3/5 linages: B.1427(0.30) B.1582(0.28) B.1389(0.198) . The abundance of three is almost correctly. It did not get recovered B.1371(0.1)and C.17(0.1)
