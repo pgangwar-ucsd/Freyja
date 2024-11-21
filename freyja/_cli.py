@@ -56,6 +56,7 @@ def print_barcode_version(ctx, param, value):
               expose_value=False, is_eager=True)
 def demix(variants, depths, output, eps, barcodes, meta,
           covcut, confirmedonly, wgisaid):
+    wepp_file_path = os.path.dirname(variants)
     locDir = os.path.abspath(os.path.join(os.path.realpath(__file__),
                              os.pardir))
     # option for custom barcodes
@@ -95,7 +96,7 @@ def demix(variants, depths, output, eps, barcodes, meta,
                                                                depths_,
                                                                avg_depth,
                                                                muts,
-                                                               eps)
+                                                               eps, wepp_file_path)
     # merge intra-lineage diversity if multiple hits.
     if len(set(sample_strains)) < len(sample_strains):
         localDict = {}

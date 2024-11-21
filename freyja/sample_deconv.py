@@ -124,7 +124,7 @@ def map_to_constellation(sample_strains, vals, mapDict):
     return localDict
 
 
-def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
+def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_file_path):
     # single file problem setup, solving
     dep = np.log2(depths+1)
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
@@ -140,7 +140,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     sol = x.value
     
     # Write closest_peak_search.csv to be computed using C++ 
-    with open('closest_peak_search.csv', mode='w', newline='') as file:
+    with open(wepp_file_path + '/closest_peak_search.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
         for i in range(len(sol)):
             abs_sol = np.abs(sol[i])
@@ -150,7 +150,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     # Run the closest_peak_clustering
     executable_path = '../../build/closest_peak_clustering'
     try:
-        result = subprocess.run([executable_path, str(eps)], capture_output=True, text=True)
+        result = subprocess.run([executable_path, str(eps), wepp_file_path], capture_output=True, text=True)
         if result.returncode != 0:
             print("Error message:\n", result.stderr)
     except FileNotFoundError:
@@ -159,7 +159,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
         print(f"An error occurred: {e}")
 
     # Read peak_removal.csv which has updated cost based on threshold and closest peak
-    with open('peaks_clustered.csv', newline='') as csvfile:
+    with open(wepp_file_path + '/peaks_clustered.csv', newline='') as csvfile:
         reader = csv.reader(csvfile)
         for i, row in enumerate(reader):
             sol[i] = float(row[0])
@@ -181,7 +181,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, avg_depth, muts)
+    write_residual_mutations(Ax_minus_b, depths, avg_depth, muts, wepp_file_path)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -194,7 +194,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps):
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
+def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts, wepp_file_path):
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
@@ -206,7 +206,7 @@ def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts):
     )[0]
     sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
 
-    with open("residual_mutations.txt", 'w') as file:
+    with open(wepp_file_path + '/residual_mutations.txt', 'w') as file:
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.01 * mean_depth
             if depths.iloc[idx] > int(0.01 * avg_depth):
