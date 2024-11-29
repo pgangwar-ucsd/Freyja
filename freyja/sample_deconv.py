@@ -11,6 +11,7 @@ from tqdm import tqdm
 import matplotlib
 import csv
 import subprocess
+import math
 
 def buildLineageMap(locDir):
     # Parsing curated lineage data from outbreak.info
@@ -125,10 +126,17 @@ def map_to_constellation(sample_strains, vals, mapDict):
 
 
 def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_file_path):
+    # Weigh dep proportional to deletion length
+    del_weights = np.ones_like(depths, dtype=int)
+    for i, mut in enumerate(muts):
+        if '-' in mut:
+            del_weights[i] = math.ceil(len(mut.split('-')[1]) / 3)
+    
     # single file problem setup, solving
     dep = np.log2(depths+1)
+    dep = dep * del_weights
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
-
+    
     # set up and solve demixing problem
     A = np.array((df_barcodes*dep).T)
     b = np.array(pd.to_numeric(mix)*dep)
