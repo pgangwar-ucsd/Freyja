@@ -126,6 +126,10 @@ def map_to_constellation(sample_strains, vals, mapDict):
 
 
 def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_file_path):
+    # get average depth across genome
+    df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
+    ref_pos_allele = df_depth[2].astype(str).to_dict()
+    
     # Weigh dep proportional to deletion length
     del_pos = []
     del_weights = np.ones_like(depths, dtype=int)
@@ -151,14 +155,41 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     
+    # Create new columns for deletions in df_barcodes
+    df_barcodes_copy = df_barcodes.copy()
+    new_del_columns = set()
+    del_idx_mapping = {}
+    
+    for idx in del_pos:
+        del_len = len(muts[idx].split('-')[1])
+        for i in range(del_len):
+            mut_pos = int(muts[idx].split('-')[0][1:]) + i + 1
+            mut = ref_pos_allele[mut_pos] + str(mut_pos) + '_'
+            new_del_columns.add(mut)
+    
+    sorted_columns = sorted(
+        new_del_columns,
+        key=lambda mut: (int(mut[1:-1]), mut[0])
+    )
+
+    for mut in sorted_columns:
+        df_barcodes_copy[mut] = 0
+        del_idx_mapping[mut] = df_barcodes_copy.columns.get_loc(mut)
+
     # Write closest_peak_search.csv to be computed using C++ 
     with open(wepp_file_path + '/closest_peak_search.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
         for i in range(len(sol)):
             abs_sol = np.abs(sol[i])
-            barcode = df_barcodes.iloc[i].tolist()
+            barcode = df_barcodes_copy.iloc[i].tolist()
             for idx in del_pos:
-                barcode[idx] = 2 * len(muts[idx].split('-')[1])
+                if barcode[idx]:
+                    barcode[idx] = 0
+                    del_len = len(muts[idx].split('-')[1])
+                    for j in range(del_len):
+                        mut_pos = int(muts[idx].split('-')[0][1:]) + j + 1
+                        mut = ref_pos_allele[mut_pos] + str(mut_pos) + '_'
+                        barcode[del_idx_mapping[mut]] = 2 
             writer.writerow([abs_sol] + barcode)
 
     # Run the closest_peak_clustering
