@@ -125,17 +125,21 @@ def map_to_constellation(sample_strains, vals, mapDict):
     return localDict
 
 
-def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_file_path):
+def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_file_path):
     # Weigh dep proportional to deletion length
+    del_pos = []
     del_weights = np.ones_like(depths, dtype=int)
     for i, mut in enumerate(muts):
         if '-' in mut:
             del_weights[i] = math.ceil(len(mut.split('-')[1]) / 3)
-    
+            del_pos.append(i)
+    del_weights = del_weights/np.max(del_weights)
+
     # single file problem setup, solving
     dep = np.log2(depths+1)
-    dep = dep * del_weights
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
+    
+    dep = dep * del_weights
     
     # set up and solve demixing problem
     A = np.array((df_barcodes*dep).T)
@@ -153,6 +157,8 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_
         for i in range(len(sol)):
             abs_sol = np.abs(sol[i])
             barcode = df_barcodes.iloc[i].tolist()
+            for idx in del_pos:
+                barcode[idx] = 2 * len(muts[idx].split('-')[1])
             writer.writerow([abs_sol] + barcode)
 
     # Run the closest_peak_clustering
@@ -185,11 +191,11 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
     rnorm = cp.norm(A @ sol - b, 1).value
-    print(f"Cost: {rnorm}")
+    print(f"Final Cost: {rnorm}")
     
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, avg_depth, muts, wepp_file_path)
+    write_residual_mutations(Ax_minus_b, depths, depthFn, muts, del_pos, wepp_file_path)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -202,7 +208,12 @@ def solve_demixing_problem(df_barcodes, mix, depths, avg_depth, muts, eps, wepp_
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts, wepp_file_path):
+def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, del_pos, wepp_file_path):
+    # get average depth across genome
+    df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
+    avg_depth = df_depth.iloc[:, 2].mean()
+    ref_pos_allele = df_depth[2].astype(str).to_dict()
+
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
@@ -218,11 +229,22 @@ def write_residual_mutations(Ax_minus_b, depths, avg_depth, muts, wepp_file_path
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.01 * mean_depth
             if depths.iloc[idx] > int(0.01 * avg_depth):
-                if Ax_minus_b[idx] > 0:
-                    mut = muts[idx][1:-1] + muts[idx][0]
+                # Handle deletion separately
+                if idx in del_pos:
+                    del_len = len(muts[idx].split('-')[1])
+                    for i in range(del_len):
+                        mut_pos = int(muts[idx].split('-')[0][1:]) + i + 1
+                        if Ax_minus_b[idx] > 0:
+                            mut = str(mut_pos) + ref_pos_allele[mut_pos]
+                        else:
+                            mut = str(mut_pos) + '_'
+                        file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
                 else:
-                    mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
+                    if Ax_minus_b[idx] > 0:
+                        mut = muts[idx][1:-1] + muts[idx][0]
+                    else:
+                        mut = muts[idx][1:-1] + muts[idx][-1]
+                    file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
