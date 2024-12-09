@@ -86,15 +86,11 @@ def demix(variants, depths, output, eps, barcodes, meta,
     mix, depths_, cov = build_mix_and_depth_arrays(variants, depths, muts,
                                                    covcut)
     print('demixing')
-    # get average depth across genome
-    df_depth = pd.read_csv(depths, sep='\t', header=None, index_col=1)
-    avg_depth = df_depth.iloc[:, 2].mean()
-
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
                                                                mix,
                                                                depths_,
-                                                               avg_depth,
+                                                               depths,
                                                                muts,
                                                                eps, wepp_file_path)
     # merge intra-lineage diversity if multiple hits.
