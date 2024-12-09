@@ -172,8 +172,9 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
         key=lambda mut: (int(mut[1:-1]), mut[0])
     )
 
+    new_columns_df = pd.DataFrame(0, index=df_barcodes_copy.index, columns=sorted_columns)
+    df_barcodes_copy = pd.concat([df_barcodes_copy, new_columns_df], axis=1)
     for mut in sorted_columns:
-        df_barcodes_copy[mut] = 0
         del_idx_mapping[mut] = df_barcodes_copy.columns.get_loc(mut)
 
     # Write closest_peak_search.csv to be computed using C++ 
