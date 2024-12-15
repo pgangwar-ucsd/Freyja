@@ -132,18 +132,16 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     
     # Weigh dep proportional to deletion length
     del_pos = []
-    del_weights = np.ones_like(depths, dtype=int)
+    del_weights = np.ones_like(depths)
     for i, mut in enumerate(muts):
         if '-' in mut:
-            del_weights[i] = math.ceil(len(mut.split('-')[1]) / 3)
+            del_weights[i] = np.log2(len(mut.split('-')[1]))
             del_pos.append(i)
-    del_weights = del_weights/np.max(del_weights)
 
     # single file problem setup, solving
     dep = np.log2(depths+1)
-    dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
-    
     dep = dep * del_weights
+    dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
     
     # set up and solve demixing problem
     A = np.array((df_barcodes*dep).T)
@@ -237,6 +235,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     abundances = sol[nzInds]
     # sort strain/abundance lists in order of decreasing abundance
     indSort = np.argsort(abundances)[::-1]
+    
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
