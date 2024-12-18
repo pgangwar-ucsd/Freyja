@@ -47,6 +47,10 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut):
     df['mutName'] = df['REF'] + df['POS'].astype(str) + df['ALT']
     df = df.drop_duplicates(subset='mutName')
     df.set_index('mutName', inplace=True)
+    
+    # Update df for deletions, replace single deletion with multiple single event deletions
+    df = expand_deletion_rows(df)
+
     keptInds = set(muts) & set(df.index)
     mix = df.loc[list(keptInds), 'ALT_FREQ'].astype(float)
     mix.name = fn
@@ -54,6 +58,43 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut):
                         .astype(float) for kI in muts}, name=fn)
     coverage = 100.*np.sum(df_depth.loc[:, 3] >= covcut)/df_depth.shape[0]
     return mix, depths, coverage
+
+
+def expand_deletion_rows(df):
+    new_rows = []
+    rows_to_remove = []
+    
+    for mutName, row in df.iterrows():
+        if '-' in mutName:
+            # Parse the mutName and row details
+            ref, rest = mutName.split('-')
+            pos = int(''.join(filter(str.isdigit, ref)))
+            ref_base = ''.join(filter(str.isalpha, ref))
+            sequence = rest  # Part after the '-'
+            
+            # Generate new rows for deletions > 2
+            if len(sequence) > 2:
+                for i, base in enumerate(sequence):
+                    new_row = row.copy()  # Copy the row to preserve other columns
+                    new_pos = pos + i + 1
+                    new_row['POS'] = new_pos
+                    new_row['REF'] = base
+                    new_row['ALT'] = '-'
+                    new_row.name = f"{base}{new_pos}-"  # New index
+
+                    # Check if a row with the same index already exists in new_rows
+                    existing_row = next((r for r in new_rows if r.name == new_row.name), None)
+                    if existing_row is not None:
+                        existing_row['ALT_FREQ'] += new_row['ALT_FREQ']
+                    else:
+                        new_rows.append(new_row)
+
+            rows_to_remove.append(mutName)  # Mark the original row for removal
+    
+    # Add new rows and remove original rows
+    df = df.drop(index=rows_to_remove)
+    df = pd.concat([df, pd.DataFrame(new_rows)])
+    return df
 
 
 def read_snv_frequencies_ivar(fn, depthFn, muts):
@@ -130,17 +171,8 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     ref_pos_allele = df_depth[2].astype(str).to_dict()
     
-    # Weigh dep proportional to deletion length
-    del_pos = []
-    del_weights = np.ones_like(depths)
-    for i, mut in enumerate(muts):
-        if '-' in mut:
-            del_weights[i] = np.log2(len(mut.split('-')[1]))
-            del_pos.append(i)
-
     # single file problem setup, solving
     dep = np.log2(depths+1)
-    dep = dep * del_weights
     dep = dep/np.max(dep)  # normalize depth scaling pre-optimization
     
     # set up and solve demixing problem
@@ -152,43 +184,15 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     prob = cp.Problem(cp.Minimize(cost), constraints)
     prob.solve(verbose=False, solver=cp.CLARABEL)
     sol = x.value
-    
-    # Create new columns for deletions in df_barcodes
-    df_barcodes_copy = df_barcodes.copy()
-    new_del_columns = set()
-    del_idx_mapping = {}
-    
-    for idx in del_pos:
-        del_len = len(muts[idx].split('-')[1])
-        for i in range(del_len):
-            mut_pos = int(muts[idx].split('-')[0][1:]) + i + 1
-            mut = ref_pos_allele[mut_pos] + str(mut_pos) + '_'
-            new_del_columns.add(mut)
-    
-    sorted_columns = sorted(
-        new_del_columns,
-        key=lambda mut: (int(mut[1:-1]), mut[0])
-    )
 
-    new_columns_df = pd.DataFrame(0, index=df_barcodes_copy.index, columns=sorted_columns)
-    df_barcodes_copy = pd.concat([df_barcodes_copy, new_columns_df], axis=1)
-    for mut in sorted_columns:
-        del_idx_mapping[mut] = df_barcodes_copy.columns.get_loc(mut)
-
-    # Write closest_peak_search.csv to be computed using C++ 
+    # Write closest_peak_search.csv to be computed using C++
     with open(wepp_file_path + '/closest_peak_search.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
+        header = [""] + list(df_barcodes.columns)
+        writer.writerow(header)
         for i in range(len(sol)):
             abs_sol = np.abs(sol[i])
-            barcode = df_barcodes_copy.iloc[i].tolist()
-            for idx in del_pos:
-                if barcode[idx]:
-                    barcode[idx] = 0
-                    del_len = len(muts[idx].split('-')[1])
-                    for j in range(del_len):
-                        mut_pos = int(muts[idx].split('-')[0][1:]) + j + 1
-                        mut = ref_pos_allele[mut_pos] + str(mut_pos) + '_'
-                        barcode[del_idx_mapping[mut]] = 2 
+            barcode = df_barcodes.iloc[i].tolist()
             writer.writerow([abs_sol] + barcode)
 
     # Run the closest_peak_clustering
@@ -225,7 +229,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, depthFn, muts, del_pos, wepp_file_path)
+    write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -239,7 +243,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, del_pos, wepp_file_path):
+def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path):
     # get average depth across genome
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
@@ -260,23 +264,11 @@ def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, del_pos, wepp_fi
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.01 * mean_depth
             if depths.iloc[idx] > int(0.01 * avg_depth):
-                # Handle deletion separately
-                if idx in del_pos:
-                    del_len = len(muts[idx].split('-')[1])
-                    for i in range(del_len):
-                        mut_pos = int(muts[idx].split('-')[0][1:]) + i + 1
-                        if Ax_minus_b[idx] > 0:
-                            mut = str(mut_pos) + ref_pos_allele[mut_pos]
-                        else:
-                            mut = str(mut_pos) + '_'
-                        file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
+                if Ax_minus_b[idx] > 0:
+                    mut = muts[idx][1:-1] + muts[idx][0]
                 else:
-                    if Ax_minus_b[idx] > 0:
-                        mut = muts[idx][1:-1] + muts[idx][0]
-                    else:
-                        mut = muts[idx][1:-1] + muts[idx][-1]
-                    file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
-
+                    mut = muts[idx][1:-1] + muts[idx][-1]
+                file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
                        mix, df_barcodes, eps0, muts, mapDict):
