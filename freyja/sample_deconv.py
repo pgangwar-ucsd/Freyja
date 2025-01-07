@@ -229,7 +229,10 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     
     # Dump mutation residual_mutations
     Ax_minus_b = A @ sol - b
-    write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path)
+    A_orig = np.array((df_barcodes).T)
+    b_orig = np.array(pd.to_numeric(mix))
+    Ax_minus_b_orig = A_orig @ sol - b_orig
+    write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path)
 
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -243,7 +246,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path):
+def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path):
     # get average depth across genome
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
@@ -253,8 +256,8 @@ def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path):
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
     # Only consider mutations outside mean +- 5 sigma
-    lower_threshold = mean_value - 5 * sigma_value
-    upper_threshold = mean_value + 5 * sigma_value
+    lower_threshold = mean_value - (5 * sigma_value)
+    upper_threshold = mean_value + (5 * sigma_value)
     indices = np.where(
         (Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold)
     )[0]
@@ -262,8 +265,9 @@ def write_residual_mutations(Ax_minus_b, depths, depthFn, muts, wepp_file_path):
 
     with open(wepp_file_path + '/residual_mutations.txt', 'w') as file:
         for idx in sorted_indices:
-            # Only consider mutations with depth > 0.01 * mean_depth
-            if depths.iloc[idx] > int(0.01 * avg_depth):
+            # Only consider mutations with depth > 0.6 * mean_depth
+            frac_diff = abs(Ax_minus_b_orig[idx]) / (b_orig[idx] + 1e-9)
+            if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.9: 
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
