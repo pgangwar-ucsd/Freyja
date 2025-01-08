@@ -255,14 +255,14 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
-    # Only consider mutations outside mean +- 5 sigma
-    lower_threshold = mean_value - (5 * sigma_value)
-    upper_threshold = mean_value + (5 * sigma_value)
+    # Only consider mutations outside mean +- 4 sigma
+    lower_threshold = mean_value - (4 * sigma_value)
+    upper_threshold = mean_value + (4 * sigma_value)
     indices = np.where(
         (Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold)
     )[0]
     sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
-
+            
     with open(wepp_file_path + '/residual_mutations.txt', 'w') as file:
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.6 * mean_depth
