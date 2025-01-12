@@ -48,8 +48,9 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut):
     df = df.drop_duplicates(subset='mutName')
     df.set_index('mutName', inplace=True)
     
+    # conversion to single deletion event was done using ivar_correction.py
     # Update df for deletions, replace single deletion with multiple single event deletions
-    df = expand_deletion_rows(df)
+    #df = expand_deletion_rows(df)
 
     keptInds = set(muts) & set(df.index)
     mix = df.loc[list(keptInds), 'ALT_FREQ'].astype(float)
@@ -267,7 +268,7 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.6 * mean_depth
             frac_diff = abs(Ax_minus_b_orig[idx]) / (b_orig[idx] + 1e-9)
-            if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.9: 
+            if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.9 and muts[idx][-1] in "ACGT-": 
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
