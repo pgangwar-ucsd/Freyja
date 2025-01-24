@@ -263,12 +263,12 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
         (Ax_minus_b < lower_threshold) | (Ax_minus_b > upper_threshold)
     )[0]
     sorted_indices = indices[np.argsort(-np.abs(Ax_minus_b[indices]))]
-            
+
     with open(wepp_file_path + '/residual_mutations.txt', 'w') as file:
         for idx in sorted_indices:
             # Only consider mutations with depth > 0.6 * mean_depth
             frac_diff = abs(Ax_minus_b_orig[idx]) / (b_orig[idx] + 1e-9)
-            if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.9 and muts[idx][-1] in "ACGT-": 
+            if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.75 and muts[idx][-1] in "ACGT-": 
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
