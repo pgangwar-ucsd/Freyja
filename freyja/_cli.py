@@ -42,6 +42,7 @@ def print_barcode_version(ctx, param, value):
 @cli.command()
 @click.argument('variants', type=click.Path(exists=True))
 @click.argument('depths', type=click.Path(exists=True))
+@click.option('--af', default=0.0, help='minimum AF to consider in reads')
 @click.option('--eps', default=1e-3, help='minimum abundance to include')
 @click.option('--barcodes', default='-1', help='custom barcode file')
 @click.option('--meta', default='-1', help='custom lineage metadata file')
@@ -54,7 +55,7 @@ def print_barcode_version(ctx, param, value):
               help='larger library with non-public lineages')
 @click.option('--version', is_flag=True, callback=print_barcode_version,
               expose_value=False, is_eager=True)
-def demix(variants, depths, output, eps, barcodes, meta,
+def demix(variants, depths, output, af, eps, barcodes, meta,
           covcut, confirmedonly, wgisaid):
     wepp_file_path = os.path.dirname(variants)
     locDir = os.path.abspath(os.path.join(os.path.realpath(__file__),
@@ -84,7 +85,7 @@ def demix(variants, depths, output, eps, barcodes, meta,
     print('building mix/depth matrices')
     # assemble data from (possibly) mixed samples
     mix, depths_, cov = build_mix_and_depth_arrays(variants, depths, muts,
-                                                   covcut)
+                                                   covcut, af)
     print('demixing')
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
