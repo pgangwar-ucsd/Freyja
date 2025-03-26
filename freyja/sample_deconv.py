@@ -35,12 +35,12 @@ def buildLineageMap(locDir):
     return mapDict
 
 
-def build_mix_and_depth_arrays(fn, depthFn, muts, covcut):
+def build_mix_and_depth_arrays(fn, depthFn, muts, covcut, af):
     input_is_vcf = fn.lower().endswith('vcf')
     if input_is_vcf:
-        df = read_snv_frequencies_vcf(fn, depthFn, muts)
+        df = read_snv_frequencies_vcf(fn, depthFn, muts, af)
     else:
-        df = read_snv_frequencies_ivar(fn, depthFn, muts)
+        df = read_snv_frequencies_ivar(fn, depthFn, muts, af)
 
     # only works for substitutions, but that's what we get from usher tree
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
@@ -98,12 +98,13 @@ def expand_deletion_rows(df):
     return df
 
 
-def read_snv_frequencies_ivar(fn, depthFn, muts):
+def read_snv_frequencies_ivar(fn, depthFn, muts, af):
     df = pd.read_csv(fn, sep='\t')
+    df = df[df['ALT_FREQ'] >= af]
     return df
 
 
-def read_snv_frequencies_vcf(fn, depthFn, muts):
+def read_snv_frequencies_vcf(fn, depthFn, muts, af):
     vcfnames = []
     with open(fn, "r") as file:
         for line in file:
@@ -124,6 +125,7 @@ def read_snv_frequencies_vcf(fn, depthFn, muts):
                                               .values\
                                               .astype(
                                                float)
+    df = df[df['ALT_FREQ'] >= af]
     return df
 
 
