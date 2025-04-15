@@ -48,10 +48,6 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut, af):
     df = df.drop_duplicates(subset='mutName')
     df.set_index('mutName', inplace=True)
     
-    # conversion to single deletion event was done using ivar_correction.py
-    # Update df for deletions, replace single deletion with multiple single event deletions
-    #df = expand_deletion_rows(df)
-
     keptInds = set(muts) & set(df.index)
     mix = df.loc[list(keptInds), 'ALT_FREQ'].astype(float)
     mix.name = fn
@@ -59,43 +55,6 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut, af):
                         .astype(float) for kI in muts}, name=fn)
     coverage = 100.*np.sum(df_depth.loc[:, 3] >= covcut)/df_depth.shape[0]
     return mix, depths, coverage
-
-
-def expand_deletion_rows(df):
-    new_rows = []
-    rows_to_remove = []
-    
-    for mutName, row in df.iterrows():
-        if '-' in mutName:
-            # Parse the mutName and row details
-            ref, rest = mutName.split('-')
-            pos = int(''.join(filter(str.isdigit, ref)))
-            ref_base = ''.join(filter(str.isalpha, ref))
-            sequence = rest  # Part after the '-'
-            
-            # Generate new rows for deletions > 2
-            if len(sequence) > 2:
-                for i, base in enumerate(sequence):
-                    new_row = row.copy()  # Copy the row to preserve other columns
-                    new_pos = pos + i + 1
-                    new_row['POS'] = new_pos
-                    new_row['REF'] = base
-                    new_row['ALT'] = '-'
-                    new_row.name = f"{base}{new_pos}-"  # New index
-
-                    # Check if a row with the same index already exists in new_rows
-                    existing_row = next((r for r in new_rows if r.name == new_row.name), None)
-                    if existing_row is not None:
-                        existing_row['ALT_FREQ'] += new_row['ALT_FREQ']
-                    else:
-                        new_rows.append(new_row)
-
-            rows_to_remove.append(mutName)  # Mark the original row for removal
-    
-    # Add new rows and remove original rows
-    df = df.drop(index=rows_to_remove)
-    df = pd.concat([df, pd.DataFrame(new_rows)])
-    return df
 
 
 def read_snv_frequencies_ivar(fn, depthFn, muts, af):
@@ -277,6 +236,7 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
                 else:
                     mut = muts[idx][1:-1] + muts[idx][-1]
                 file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
+
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
                        mix, df_barcodes, eps0, muts, mapDict):
