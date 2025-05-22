@@ -212,11 +212,10 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
     # get average depth across genome
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
-    ref_pos_allele = df_depth[2].astype(str).to_dict()
-
     mean_value = np.mean(Ax_minus_b)
     variance_value = np.var(Ax_minus_b)
     sigma_value = np.sqrt(variance_value)
+
     # Only consider mutations outside mean +- 2 sigma
     lower_threshold = mean_value - (2 * sigma_value)
     upper_threshold = mean_value + (2 * sigma_value)
@@ -227,15 +226,14 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
 
     with open(wepp_file_path + '/residual_mutations.txt', 'w') as file:
         for idx in sorted_indices:
-            # Only consider mutations with depth > 0.6 * mean_depth
             frac_diff = abs(Ax_minus_b_orig[idx]) / (b_orig[idx] + 1e-9)
-            
+            # Only consider mutations that are both above depth threshold and percentage allele_freq difference 
             if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.5 and muts[idx][-1] in "ACGT-": 
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                 else:
                     mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut},{abs(Ax_minus_b[idx])}\n")
+                file.write(f"{mut},{abs(Ax_minus_b[idx])},{b_orig[idx]},{int(depths.iloc[idx])}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
