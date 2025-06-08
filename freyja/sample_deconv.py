@@ -231,9 +231,13 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
             if depths.iloc[idx] > int(0.6 * avg_depth) and frac_diff > 0.5 and muts[idx][-1] in "ACGT-": 
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
+                    site = muts[idx][1:-1]
+                    af = sum(b_orig[i] for i, m in enumerate(muts) if m[1:-1] == site)
+                    allele_freq = 1.0 - af
                 else:
-                    mut = muts[idx][1:-1] + muts[idx][-1]
-                file.write(f"{mut},{abs(Ax_minus_b[idx])},{b_orig[idx]},{int(depths.iloc[idx])}\n")
+                    mut = muts[idx][1:]
+                    allele_freq = b_orig[idx]
+                file.write(f"{mut},{abs(Ax_minus_b[idx])},{allele_freq},{int(depths.iloc[idx])}\n")
 
 
 def bootstrap_parallel(jj, samplesDefining, fracDepths_adj, mix_grp,
