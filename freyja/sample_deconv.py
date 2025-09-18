@@ -43,6 +43,8 @@ def build_mix_and_depth_arrays(fn, depthFn, muts, covcut, af):
         df = read_snv_frequencies_ivar(fn, depthFn, muts, af)
 
     # only works for substitutions, but that's what we get from usher tree
+    df['REF'] = df['REF'].str.upper()
+    df['ALT'] = df['ALT'].str.upper()
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     df['mutName'] = df['REF'] + df['POS'].astype(str) + df['ALT']
     df = df.drop_duplicates(subset='mutName')
