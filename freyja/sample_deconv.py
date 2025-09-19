@@ -130,7 +130,7 @@ def map_to_constellation(sample_strains, vals, mapDict):
     return localDict
 
 
-def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_file_path):
+def solve_demixing_problem(df_barcodes, fn, mix, depths, depthFn, muts, eps, wepp_file_path):
     # get average depth across genome
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     ref_pos_allele = df_depth[2].astype(str).to_dict()
@@ -196,7 +196,7 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     A_orig = np.array((df_barcodes).T)
     b_orig = np.array(pd.to_numeric(mix))
     Ax_minus_b_orig = A_orig @ sol - b_orig
-    write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path)
+    write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path, fn)
     
     # extract lineages with non-negligible abundance
     sol[sol < eps] = 0
@@ -210,7 +210,12 @@ def solve_demixing_problem(df_barcodes, mix, depths, depthFn, muts, eps, wepp_fi
     return sample_strains[indSort], abundances[indSort], rnorm
 
 
-def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path):
+def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthFn, muts, wepp_file_path, fn):
+    # Read the freq file again to get accurate freq of alleles (including deletions)
+    df = pd.read_csv(fn, sep='\t')
+    df['REF'] = df['REF'].str.upper()
+    df['ALT'] = df['ALT'].str.upper()
+    
     # get average depth across genome
     df_depth = pd.read_csv(depthFn, sep='\t', header=None, index_col=1)
     avg_depth = df_depth.iloc[:, 2].mean()
@@ -234,8 +239,9 @@ def write_residual_mutations(Ax_minus_b, Ax_minus_b_orig, b_orig, depths, depthF
                 if Ax_minus_b[idx] > 0:
                     mut = muts[idx][1:-1] + muts[idx][0]
                     site = muts[idx][1:-1]
-                    af = sum(b_orig[i] for i, m in enumerate(muts) if m[1:-1] == site)
-                    allele_freq = 1.0 - af
+                    all_sites = df[df['POS'] == int(site)]
+                    curr_af = min(all_sites['ALT_FREQ'].sum() if not all_sites.empty else 0.0, 1.0)
+                    allele_freq = 1.0 - curr_af
                 else:
                     mut = muts[idx][1:]
                     allele_freq = b_orig[idx]

@@ -89,6 +89,7 @@ def demix(variants, depths, output, af, eps, barcodes, meta,
     print('demixing')
     df_barcodes, mix, depths_ = reindex_dfs(df_barcodes, mix, depths_)
     sample_strains, abundances, error = solve_demixing_problem(df_barcodes,
+                                                               variants,
                                                                mix,
                                                                depths_,
                                                                depths,
